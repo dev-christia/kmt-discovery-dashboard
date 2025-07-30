@@ -66,9 +66,16 @@ export default function DashboardLayout({
             <div className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <h1 className="text-xl font-bold text-red-600">
-                    KMT Discovery
-                  </h1>
+                  <div className="flex items-center space-x-2">
+                    <img
+                      src="/placeholder-logo.png"
+                      alt="KMT Discovery"
+                      className="h-8 w-8"
+                    />
+                    <h1 className="text-xl font-bold text-red-600">
+                      KMT Discovery
+                    </h1>
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
@@ -120,6 +127,13 @@ export default function DashboardLayout({
           {/* Sidebar */}
           <nav className="fixed left-0 top-0 w-64 bg-white shadow-sm h-screen overflow-y-auto pt-20">
             <div className="p-6">
+              <div className="flex items-center justify-center mb-6 pb-4 border-b">
+                <img
+                  src="/placeholder-logo.png"
+                  alt="KMT Discovery"
+                  className="h-12 w-12"
+                />
+              </div>
               <ul className="space-y-2">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href;

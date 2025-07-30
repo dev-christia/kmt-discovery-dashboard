@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { useInvitations } from "@/hooks/use-invitations";
 import { UserRoleType } from "@/types/invitation";
+import { useToast } from "@/hooks/use-toast";
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -75,10 +76,12 @@ const roleColors = {
 };
 
 export default function InvitationsPage() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedRole, setSelectedRole] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [showExportSummary, setShowExportSummary] = useState(false);
   const [newInvitation, setNewInvitation] = useState({
     email: "",
     role: UserRoleType.TOURIST,
@@ -86,13 +89,22 @@ export default function InvitationsPage() {
 
   const {
     invitations,
+    filteredInvitations,
+    allInvitations,
     loading,
+    sendingInvitation,
+    revokingInvitation,
+    resendingInvitation,
     error,
     pagination,
     sendInvitation,
+    resendInvitation,
     revokeInvitation,
+    exportInvitations,
     refetch,
   } = useInvitations({
+    page: 1, // We'll handle pagination on frontend
+    limit: 100, // Get more data to work with
     search: searchTerm,
     status: selectedStatus === "all" ? undefined : (selectedStatus as any),
     role: selectedRole === "all" ? undefined : (selectedRole as UserRoleType),
@@ -111,6 +123,36 @@ export default function InvitationsPage() {
     } catch (error) {
       console.error("Failed to create invitation:", error);
     }
+  };
+
+  const handleExportWithSummary = (
+    data: any[],
+    filename: string,
+    format: "csv" | "json" | "pdf"
+  ) => {
+    const summary = {
+      total: data.length,
+      pending: data.filter((inv) => {
+        const now = new Date();
+        const expiresAt = new Date(inv.expiresAt);
+        return !inv.acceptedAt && expiresAt > now;
+      }).length,
+      accepted: data.filter((inv) => !!inv.acceptedAt).length,
+      expired: data.filter((inv) => {
+        const now = new Date();
+        const expiresAt = new Date(inv.expiresAt);
+        return !inv.acceptedAt && expiresAt <= now;
+      }).length,
+    };
+
+    // Show toast with summary before export
+    toast({
+      title: "Exporting Invitations",
+      description: `${summary.total} invitations (${summary.pending} pending, ${summary.accepted} accepted, ${summary.expired} expired)`,
+    });
+
+    // Proceed with export
+    exportInvitations(data, filename, format);
   };
 
   const getInvitationStatus = (invitation: any) => {
@@ -158,18 +200,108 @@ export default function InvitationsPage() {
           <Button
             variant="outline"
             onClick={refetch}
+            disabled={loading}
             className="border-red-200 text-red-600 hover:bg-red-50"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
+            {loading ? "Refreshing..." : "Refresh"}
           </Button>
-          <Button
-            variant="outline"
-            className="border-red-200 text-red-600 hover:bg-red-50"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export ({filteredInvitations?.length || 0})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>
+                Export Filtered ({filteredInvitations?.length || 0} items)
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  handleExportWithSummary(
+                    filteredInvitations,
+                    "filtered_invitations",
+                    "csv"
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  handleExportWithSummary(
+                    filteredInvitations,
+                    "filtered_invitations",
+                    "json"
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  handleExportWithSummary(
+                    filteredInvitations,
+                    "filtered_invitations",
+                    "pdf"
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>
+                Export All ({allInvitations?.length || 0} items)
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  handleExportWithSummary(
+                    allInvitations,
+                    "all_invitations",
+                    "csv"
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export All as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  handleExportWithSummary(
+                    allInvitations,
+                    "all_invitations",
+                    "json"
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export All as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  handleExportWithSummary(
+                    allInvitations,
+                    "all_invitations",
+                    "pdf"
+                  )
+                }
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export All as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Dialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
@@ -246,10 +378,18 @@ export default function InvitationsPage() {
                 <Button
                   onClick={handleCreateInvitation}
                   className="bg-red-600 hover:bg-red-700"
-                  disabled={!newInvitation.email || !newInvitation.role}
+                  disabled={
+                    !newInvitation.email ||
+                    !newInvitation.role ||
+                    sendingInvitation
+                  }
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Invitation
+                  {sendingInvitation ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  {sendingInvitation ? "Sending..." : "Send Invitation"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -479,13 +619,40 @@ export default function InvitationsPage() {
                                 <Copy className="mr-2 h-4 w-4" />
                                 Copy Invite Link
                               </DropdownMenuItem>
+                              {getInvitationStatus(invitation) ===
+                                "pending" && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    resendInvitation(invitation.id)
+                                  }
+                                  disabled={
+                                    resendingInvitation === invitation.id
+                                  }
+                                >
+                                  {resendingInvitation === invitation.id ? (
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Mail className="mr-2 h-4 w-4" />
+                                  )}
+                                  {resendingInvitation === invitation.id
+                                    ? "Resending..."
+                                    : "Resend Invitation"}
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-red-600"
                                 onClick={() => revokeInvitation(invitation.id)}
+                                disabled={revokingInvitation === invitation.id}
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Revoke Invitation
+                                {revokingInvitation === invitation.id ? (
+                                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                )}
+                                {revokingInvitation === invitation.id
+                                  ? "Revoking..."
+                                  : "Revoke Invitation"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import {
   type Invitation,
@@ -19,8 +19,11 @@ interface UseInvitationsParams {
 }
 
 export function useInvitations(params: UseInvitationsParams = {}) {
-  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [allInvitations, setAllInvitations] = useState<Invitation[]>([])
   const [loading, setLoading] = useState(true)
+  const [sendingInvitation, setSendingInvitation] = useState(false)
+  const [revokingInvitation, setRevokingInvitation] = useState<string | null>(null)
+  const [resendingInvitation, setResendingInvitation] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pagination, setPagination] = useState({
     total: 0,
@@ -30,6 +33,63 @@ export function useInvitations(params: UseInvitationsParams = {}) {
   })
   const { toast } = useToast()
   const { data: session } = useSession()
+
+  // Filter and paginate invitations on frontend
+  const filteredInvitations = useMemo(() => {
+    let filtered = allInvitations
+
+    // Apply search filter
+    if (params.search) {
+      const searchLower = params.search.toLowerCase()
+      filtered = filtered.filter(inv => 
+        inv.email.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Apply status filter
+    if (params.status && params.status !== 'all') {
+      filtered = filtered.filter(inv => {
+        const now = new Date()
+        const expiresAt = new Date(inv.expiresAt)
+        
+        if (params.status === 'pending') {
+          return !inv.acceptedAt && expiresAt > now
+        } else if (params.status === 'accepted') {
+          return !!inv.acceptedAt
+        } else if (params.status === 'expired') {
+          return !inv.acceptedAt && expiresAt <= now
+        }
+        return true
+      })
+    }
+
+    // Apply role filter
+    if (params.role && params.role !== 'all') {
+      filtered = filtered.filter(inv => inv.role === params.role)
+    }
+
+    return filtered
+  }, [allInvitations, params.search, params.status, params.role])
+
+  // Paginate filtered results
+  const invitations = useMemo(() => {
+    const page = params.page || 1
+    const limit = params.limit || 10
+    const startIndex = (page - 1) * limit
+    const endIndex = startIndex + limit
+    
+    const paginatedData = filteredInvitations.slice(startIndex, endIndex)
+    
+    // Update pagination state
+    setPagination({
+      total: filteredInvitations.length,
+      page,
+      limit,
+      totalPages: Math.ceil(filteredInvitations.length / limit),
+    })
+    
+    return paginatedData
+  }, [filteredInvitations, params.page, params.limit])
 
   // Get auth token from NextAuth session
   const getAuthHeaders = useCallback(() => {
@@ -45,15 +105,8 @@ export function useInvitations(params: UseInvitationsParams = {}) {
       setLoading(true)
       setError(null)
 
-      // Build query parameters
-      const searchParams = new URLSearchParams()
-      if (params.page) searchParams.append('page', params.page.toString())
-      if (params.limit) searchParams.append('limit', params.limit.toString())
-      if (params.search) searchParams.append('search', params.search)
-      if (params.status && params.status !== 'all') searchParams.append('status', params.status)
-      if (params.role && params.role !== 'all') searchParams.append('role', params.role)
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations?${searchParams.toString()}`, {
+      // No query parameters - we'll filter on frontend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations`, {
         method: 'GET',
         headers: getAuthHeaders(),
       })
@@ -62,14 +115,18 @@ export function useInvitations(params: UseInvitationsParams = {}) {
         throw new Error(`Failed to fetch invitations: ${response.statusText}`)
       }
 
-      const data: InvitationResponse = await response.json()
+      const data: any = await response.json()
       
-      setInvitations(data.invitations)
+      // Backend returns: { success: true, message: string, data: { invitations: Invitation[] } }
+      const allInvitations = data.data?.invitations || []
+      setAllInvitations(allInvitations)
+      
+      // Frontend pagination - we'll filter and paginate locally
       setPagination({
-        total: data.total,
-        page: data.page,
-        limit: data.limit,
-        totalPages: data.totalPages,
+        total: allInvitations.length,
+        page: params.page || 1,
+        limit: params.limit || 10,
+        totalPages: Math.ceil(allInvitations.length / (params.limit || 10)),
       })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch invitations"
@@ -82,18 +139,11 @@ export function useInvitations(params: UseInvitationsParams = {}) {
     } finally {
       setLoading(false)
     }
-  }, [
-    params.page, 
-    params.limit, 
-    params.search, 
-    params.status, 
-    params.role, 
-    getAuthHeaders, 
-    toast
-  ])
+  }, [getAuthHeaders, toast])
 
   const sendInvitation = useCallback(async (data: CreateInvitationRequest) => {
     try {
+      setSendingInvitation(true)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -101,12 +151,21 @@ export function useInvitations(params: UseInvitationsParams = {}) {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to send invitation: ${response.statusText}`)
+        const errorResponse = await response.json()
+        if (errorResponse.message) {
+          throw new Error(`${errorResponse.message}`)
+        }
+        throw new Error(`Internal Server Error`)
       }
 
-      const newInvitation: Invitation = await response.json()
+      const responseData = await response.json()
+      
+      // Backend returns: { success: true, message: string, data: { invitation: Invitation } }
+      const newInvitation = responseData.data?.invitation
 
-      setInvitations((prev) => [newInvitation, ...prev])
+      if (newInvitation) {
+        setAllInvitations((prev) => [newInvitation, ...prev])
+      }
 
       toast({
         title: "Invitation Sent",
@@ -122,11 +181,43 @@ export function useInvitations(params: UseInvitationsParams = {}) {
         description: errorMessage,
       })
       throw err
+    } finally {
+      setSendingInvitation(false)
+    }
+  }, [getAuthHeaders, toast])
+
+  const resendInvitation = useCallback(async (id: string) => {
+    try {
+      setResendingInvitation(id)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${id}/resend`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to resend invitation: ${response.statusText}`)
+      }
+
+      toast({
+        title: "Invitation Resent",
+        description: "Invitation has been resent successfully.",
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to resend invitation"
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      })
+      throw err
+    } finally {
+      setResendingInvitation(null)
     }
   }, [getAuthHeaders, toast])
 
   const revokeInvitation = useCallback(async (id: string) => {
     try {
+      setRevokingInvitation(id)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -136,7 +227,7 @@ export function useInvitations(params: UseInvitationsParams = {}) {
         throw new Error(`Failed to revoke invitation: ${response.statusText}`)
       }
 
-      setInvitations((prev) => prev.filter((inv) => inv.id !== id))
+      setAllInvitations((prev) => prev.filter((inv) => inv.id !== id))
 
       toast({
         title: "Invitation Revoked",
@@ -150,8 +241,235 @@ export function useInvitations(params: UseInvitationsParams = {}) {
         description: errorMessage,
       })
       throw err
+    } finally {
+      setRevokingInvitation(null)
     }
   }, [getAuthHeaders, toast])
+
+  const exportInvitations = useCallback((invitationsToExport: Invitation[], filename = 'invitations', format: 'csv' | 'json' | 'pdf' = 'csv') => {
+    try {
+      if (format === 'pdf') {
+        // Export as PDF with logo
+        const printWindow = window.open('', '_blank')
+        if (!printWindow) return
+
+        const logoUrl = '/placeholder-logo.png' // Using existing logo
+        
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>KMT Discovery - Invitations Report</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #dc2626; padding-bottom: 20px; }
+              .logo { max-height: 60px; margin-bottom: 10px; }
+              .company-name { color: #dc2626; font-size: 24px; font-weight: bold; margin: 10px 0; }
+              .report-title { font-size: 18px; color: #333; margin: 10px 0; }
+              .summary { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0; }
+              .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center; }
+              .summary-item { background: white; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb; }
+              .summary-number { font-size: 24px; font-weight: bold; color: #dc2626; }
+              .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #dc2626; color: white; }
+              .status-pending { background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+              .status-accepted { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+              .status-expired { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+              .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #6b7280; }
+              @media print { body { margin: 0; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <img src="${logoUrl}" alt="KMT Discovery Logo" class="logo" />
+              <div class="company-name">KMT Discovery</div>
+              <div class="report-title">Invitations Report - ${new Date().toLocaleDateString()}</div>
+            </div>
+            
+            <div class="summary">
+              <h3>Summary</h3>
+              <div class="summary-grid">
+                <div class="summary-item">
+                  <div class="summary-number">${invitationsToExport.length}</div>
+                  <div class="summary-label">Total</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-number">${invitationsToExport.filter(inv => {
+                    const now = new Date()
+                    const expiresAt = new Date(inv.expiresAt)
+                    return !inv.acceptedAt && expiresAt > now
+                  }).length}</div>
+                  <div class="summary-label">Pending</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-number">${invitationsToExport.filter(inv => !!inv.acceptedAt).length}</div>
+                  <div class="summary-label">Accepted</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-number">${invitationsToExport.filter(inv => {
+                    const now = new Date()
+                    const expiresAt = new Date(inv.expiresAt)
+                    return !inv.acceptedAt && expiresAt <= now
+                  }).length}</div>
+                  <div class="summary-label">Expired</div>
+                </div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Created At</th>
+                  <th>Expires At</th>
+                  <th>Accepted At</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invitationsToExport.map(invitation => {
+                  const now = new Date()
+                  const expiresAt = new Date(invitation.expiresAt)
+                  let status = 'pending'
+                  
+                  if (invitation.acceptedAt) {
+                    status = 'accepted'
+                  } else if (expiresAt <= now) {
+                    status = 'expired'
+                  }
+
+                  return `
+                    <tr>
+                      <td>${invitation.email}</td>
+                      <td>${invitation.role}</td>
+                      <td><span class="status-${status}">${status.toUpperCase()}</span></td>
+                      <td>${new Date(invitation.createdAt).toLocaleDateString()}</td>
+                      <td>${new Date(invitation.expiresAt).toLocaleDateString()}</td>
+                      <td>${invitation.acceptedAt ? new Date(invitation.acceptedAt).toLocaleDateString() : 'N/A'}</td>
+                    </tr>
+                  `
+                }).join('')}
+              </tbody>
+            </table>
+
+            <div class="footer">
+              <p>Generated on ${new Date().toLocaleString()} | KMT Discovery Platform</p>
+              <p>Pan-African Digital Platform for Tourism & Cultural Heritage</p>
+            </div>
+          </body>
+          </html>
+        `
+
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        
+        // Wait for images to load, then print
+        setTimeout(() => {
+          printWindow.print()
+          printWindow.close()
+        }, 500)
+
+      } else if (format === 'json') {
+        // Export as JSON
+        const jsonData = invitationsToExport.map(invitation => {
+          const now = new Date()
+          const expiresAt = new Date(invitation.expiresAt)
+          let status = 'pending'
+          
+          if (invitation.acceptedAt) {
+            status = 'accepted'
+          } else if (expiresAt <= now) {
+            status = 'expired'
+          }
+
+          return {
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            status,
+            invitedBy: invitation.invitedBy || 'N/A',
+            createdAt: invitation.createdAt,
+            expiresAt: invitation.expiresAt,
+            acceptedAt: invitation.acceptedAt || null,
+            token: invitation.token
+          }
+        })
+
+        const jsonContent = JSON.stringify(jsonData, null, 2)
+        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' })
+        const link = document.createElement('a')
+        
+        if (link.download !== undefined) {
+          const url = URL.createObjectURL(blob)
+          link.setAttribute('href', url)
+          link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.json`)
+          link.style.visibility = 'hidden'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+      } else {
+        // Export as CSV (existing logic)
+        const headers = ['Email', 'Role', 'Status', 'Invited By', 'Created At', 'Expires At', 'Accepted At']
+        
+        const csvData = invitationsToExport.map(invitation => {
+          const now = new Date()
+          const expiresAt = new Date(invitation.expiresAt)
+          let status = 'pending'
+          
+          if (invitation.acceptedAt) {
+            status = 'accepted'
+          } else if (expiresAt <= now) {
+            status = 'expired'
+          }
+
+          return [
+            invitation.email,
+            invitation.role,
+            status,
+            invitation.invitedBy || 'N/A',
+            new Date(invitation.createdAt).toLocaleDateString(),
+            new Date(invitation.expiresAt).toLocaleDateString(),
+            invitation.acceptedAt ? new Date(invitation.acceptedAt).toLocaleDateString() : 'N/A'
+          ]
+        })
+
+        // Create CSV content
+        const csvContent = [
+          headers.join(','),
+          ...csvData.map(row => row.map(field => `"${field}"`).join(','))
+        ].join('\n')
+
+        // Create and download file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        
+        if (link.download !== undefined) {
+          const url = URL.createObjectURL(blob)
+          link.setAttribute('href', url)
+          link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`)
+          link.style.visibility = 'hidden'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+      }
+
+      toast({
+        title: "Export Successful",
+        description: `${invitationsToExport.length} invitations exported as ${format.toUpperCase()} successfully.`,
+      })
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: "Failed to export invitations. Please try again.",
+      })
+    }
+  }, [toast])
 
   useEffect(() => {
     fetchInvitations()
@@ -159,11 +477,18 @@ export function useInvitations(params: UseInvitationsParams = {}) {
 
   return {
     invitations,
+    filteredInvitations,
+    allInvitations,
     loading,
+    sendingInvitation,
+    revokingInvitation,
+    resendingInvitation,
     error,
     pagination,
     sendInvitation,
+    resendInvitation,
     revokeInvitation,
+    exportInvitations,
     refetch: fetchInvitations,
   }
 }
