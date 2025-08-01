@@ -9,6 +9,12 @@ export enum UserRoleType {
   OTHER = "OTHER",
 }
 
+export enum UserStatus {
+  ACTIVE = "ACTIVE",
+  SUSPENDED = "SUSPENDED",
+  DELETED = "DELETED",
+}
+
 export interface Invitation {
   id: string
   email: string

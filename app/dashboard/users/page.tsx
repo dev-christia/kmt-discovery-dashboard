@@ -22,180 +22,125 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Search,
-  Filter,
-  MoreHorizontal,
-  UserPlus,
-  Download,
-  Mail,
-  Eye,
-  Edit,
+  RefreshCw,
+  Edit2,
   Trash2,
+  Shield,
   Users,
+  Globe,
+  Ban,
 } from "lucide-react";
-
-// Mock user data - replace with real API data
-const users = [
-  {
-    id: "1",
-    name: "Kwame Asante",
-    email: "kwame.asante@email.com",
-    role: "Tourist",
-    country: "Ghana",
-    status: "Active",
-    joinDate: "2024-01-15",
-    lastLogin: "2024-07-28",
-    avatar: "/placeholder-user.jpg",
-    phone: "+233 24 123 4567",
-    bookings: 12,
-    spent: "$2,450",
-  },
-  {
-    id: "2",
-    name: "Amina Hassan",
-    email: "amina.hassan@email.com",
-    role: "Investor",
-    country: "Kenya",
-    status: "Active",
-    joinDate: "2024-02-20",
-    lastLogin: "2024-07-29",
-    avatar: "/placeholder-user.jpg",
-    phone: "+254 70 123 4567",
-    bookings: 8,
-    spent: "$15,000",
-  },
-  {
-    id: "3",
-    name: "Jean-Baptiste Mukama",
-    email: "jb.mukama@email.com",
-    role: "Consultant",
-    country: "Rwanda",
-    status: "Active",
-    joinDate: "2024-01-10",
-    lastLogin: "2024-07-29",
-    avatar: "/placeholder-user.jpg",
-    phone: "+250 78 123 4567",
-    bookings: 25,
-    spent: "$5,200",
-  },
-  {
-    id: "4",
-    name: "Fatima Al-Zahra",
-    email: "fatima.alzahra@email.com",
-    role: "Student",
-    country: "Morocco",
-    status: "Inactive",
-    joinDate: "2024-03-05",
-    lastLogin: "2024-07-20",
-    avatar: "/placeholder-user.jpg",
-    phone: "+212 6 123 4567",
-    bookings: 3,
-    spent: "$180",
-  },
-  {
-    id: "5",
-    name: "Michael Thompson",
-    email: "michael.thompson@email.com",
-    role: "Government Official",
-    country: "South Africa",
-    status: "Active",
-    joinDate: "2024-02-15",
-    lastLogin: "2024-07-28",
-    avatar: "/placeholder-user.jpg",
-    phone: "+27 82 123 4567",
-    bookings: 15,
-    spent: "$3,800",
-  },
-  {
-    id: "6",
-    name: "Aisha Diallo",
-    email: "aisha.diallo@email.com",
-    role: "Tourist",
-    country: "Senegal",
-    status: "Active",
-    joinDate: "2024-04-01",
-    lastLogin: "2024-07-29",
-    avatar: "/placeholder-user.jpg",
-    phone: "+221 77 123 4567",
-    bookings: 7,
-    spent: "$1,200",
-  },
-  {
-    id: "7",
-    name: "David Ochieng",
-    email: "david.ochieng@email.com",
-    role: "Consultant",
-    country: "Uganda",
-    status: "Pending",
-    joinDate: "2024-07-25",
-    lastLogin: "Never",
-    avatar: "/placeholder-user.jpg",
-    phone: "+256 77 123 4567",
-    bookings: 0,
-    spent: "$0",
-  },
-  {
-    id: "8",
-    name: "Mariam Kone",
-    email: "mariam.kone@email.com",
-    role: "Investor",
-    country: "Mali",
-    status: "Active",
-    joinDate: "2024-01-30",
-    lastLogin: "2024-07-27",
-    avatar: "/placeholder-user.jpg",
-    phone: "+223 70 123 4567",
-    bookings: 20,
-    spent: "$25,600",
-  },
-];
+import { useUsers } from "@/hooks/use-users";
+import { UserRoleType, UserStatus } from "@/types/invitation";
+import { useToast } from "@/hooks/use-toast";
 
 const roleColors = {
-  Tourist: "bg-blue-100 text-blue-800",
-  Investor: "bg-green-100 text-green-800",
-  Consultant: "bg-purple-100 text-purple-800",
-  Student: "bg-yellow-100 text-yellow-800",
-  "Government Official": "bg-red-100 text-red-800",
-  Admin: "bg-gray-100 text-gray-800",
+  [UserRoleType.ADMIN]: "bg-red-100 text-red-800",
+  [UserRoleType.SUPER_ADMIN]: "bg-purple-100 text-purple-800",
+  [UserRoleType.EXPERT]: "bg-blue-100 text-blue-800",
+  [UserRoleType.TOURIST]: "bg-green-100 text-green-800",
+  [UserRoleType.GUIDE]: "bg-orange-100 text-orange-800",
+  [UserRoleType.RESEARCHER]: "bg-indigo-100 text-indigo-800",
+  [UserRoleType.STUDENT]: "bg-yellow-100 text-yellow-800",
+  [UserRoleType.OTHER]: "bg-gray-100 text-gray-800",
 };
 
 const statusColors = {
-  Active: "bg-green-100 text-green-800",
-  Inactive: "bg-gray-100 text-gray-800",
-  Pending: "bg-yellow-100 text-yellow-800",
-  Suspended: "bg-red-100 text-red-800",
+  [UserStatus.ACTIVE]: "bg-green-100 text-green-800",
+  [UserStatus.SUSPENDED]: "bg-red-100 text-red-800",
+  [UserStatus.DELETED]: "bg-gray-100 text-gray-800",
 };
 
 export default function UsersPage() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCountry, setSelectedCountry] = useState("all");
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === "all" || user.role === selectedRole;
-    const matchesStatus =
-      selectedStatus === "all" || user.status === selectedStatus;
-    const matchesCountry =
-      selectedCountry === "all" || user.country === selectedCountry;
+  const { users, allUsers, loading, error, updateUser, deleteUser, refetch } =
+    useUsers({
+      searchTerm,
+      roles:
+        selectedRole === "all" ? undefined : (selectedRole as UserRoleType),
+      status:
+        selectedStatus === "all" ? undefined : (selectedStatus as UserStatus),
+      country: selectedCountry === "all" ? undefined : selectedCountry,
+    });
 
-    return matchesSearch && matchesRole && matchesStatus && matchesCountry;
-  });
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setIsEditDialogOpen(true);
+  };
 
-  const uniqueRoles = [...new Set(users.map((user) => user.role))];
-  const uniqueCountries = [...new Set(users.map((user) => user.country))];
-  const uniqueStatuses = [...new Set(users.map((user) => user.status))];
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+
+    try {
+      await updateUser(editingUser.id, {
+        roles: editingUser.roles,
+        status: editingUser.status,
+      });
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      toast({
+        title: "User Updated",
+        description: "User information has been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Failed to update user. Please try again.",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (confirm("Are you sure you want to delete this user?")) {
+      try {
+        await deleteUser(userId);
+        toast({
+          title: "User Deleted",
+          description: "User has been deleted successfully.",
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Delete Failed",
+          description: "Failed to delete user. Please try again.",
+        });
+      }
+    }
+  };
+
+  // Calculate stats
+  const activeUsers = (allUsers || []).filter(
+    (user) => user.status === UserStatus.ACTIVE
+  ).length;
+  const suspendedUsers = (allUsers || []).filter(
+    (user) => user.status === UserStatus.SUSPENDED
+  ).length;
+  const totalUsers = (allUsers || []).length;
+  const uniqueRoles = [...new Set((allUsers || []).map((user) => user.roles))];
+  const uniqueCountries = [
+    ...new Set((allUsers || []).map((user) => user.country).filter(Boolean)),
+  ];
+  const uniqueStatuses = [
+    ...new Set((allUsers || []).map((user) => user.status)),
+  ];
 
   return (
     <div className="space-y-6">
@@ -203,21 +148,21 @@ export default function UsersPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">
-            Manage and monitor all platform users
+          <p className="text-gray-600">
+            Manage all users and their permissions on the platform
           </p>
         </div>
         <div className="flex items-center space-x-3 mt-4 md:mt-0">
           <Button
             variant="outline"
+            onClick={refetch}
+            disabled={loading}
             className="border-red-200 text-red-600 hover:bg-red-50"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button className="bg-red-600 hover:bg-red-700 text-white">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add User
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
+            {loading ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
       </div>
@@ -225,128 +170,128 @@ export default function UsersPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users.length}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-red-50">
-                <Users className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="w-4 h-4 text-gray-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalUsers}</div>
+            <p className="text-xs text-gray-600">All registered users</p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Active Users
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users.filter((u) => u.status === "Active").length}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-green-50">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <Shield className="w-4 h-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {activeUsers}
             </div>
+            <p className="text-xs text-gray-600">Currently active</p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  New This Month
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {
-                    users.filter((u) => new Date(u.joinDate).getMonth() === 6)
-                      .length
-                  }
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-blue-50">
-                <UserPlus className="w-6 h-6 text-blue-600" />
-              </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Suspended</CardTitle>
+            <Ban className="w-4 h-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {suspendedUsers}
             </div>
+            <p className="text-xs text-gray-600">Suspended accounts</p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Countries</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {uniqueCountries.length}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-purple-50">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Countries</CardTitle>
+            <Globe className="w-4 h-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{uniqueCountries.length}</div>
+            <p className="text-xs text-gray-600">Global reach</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-            <div className="flex-1">
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="search">Search Users</Label>
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Search users by name or email..."
+                  id="search"
+                  placeholder="Search by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                {uniqueRoles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {uniqueStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Countries</SelectItem>
-                {uniqueCountries.map((country) => (
-                  <SelectItem key={country} value={country}>
-                    {country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  {uniqueRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {uniqueStatuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select
+                value={selectedCountry}
+                onValueChange={setSelectedCountry}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All countries" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All countries</SelectItem>
+                  {uniqueCountries.map((country: any) => (
+                    <SelectItem key={country} value={country}>
+                      {country}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -354,116 +299,215 @@ export default function UsersPage() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Users ({filteredUsers.length})</CardTitle>
+          <CardTitle>
+            Users ({users?.length || 0})
+            {searchTerm ||
+            selectedRole !== "all" ||
+            selectedStatus !== "all" ||
+            selectedCountry !== "all"
+              ? ` of ${totalUsers} total`
+              : ""}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Country</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Join Date</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Bookings</TableHead>
-                  <TableHead>Spent</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Avatar>
+          {loading ? (
+            <div className="text-center py-8">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+              <p className="text-gray-600 mt-2">Loading users...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">Error loading users: {error}</p>
+              <Button onClick={refetch} className="mt-2">
+                Try Again
+              </Button>
+            </div>
+          ) : !users || users.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-gray-400 mx-auto" />
+              <p className="text-gray-600 mt-2">No users found</p>
+              {searchTerm && (
+                <p className="text-sm text-gray-500">
+                  Try adjusting your search or filters
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="flex items-center space-x-3">
+                        <Avatar className="w-8 h-8">
                           <AvatarImage src={user.avatar} />
                           <AvatarFallback>
-                            {user.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
+                            {user.firstName?.[0]?.toUpperCase() || "U"}
+                            {user.lastName?.[0]?.toUpperCase() || ""}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {user.name}
-                          </p>
-                          <p className="text-sm text-gray-500">{user.email}</p>
+                          <div className="font-medium">
+                            {user.firstName} {user.lastName}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {user.email}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          roleColors[user.role as keyof typeof roleColors]
-                        }
-                      >
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {user.country}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          statusColors[user.status as keyof typeof statusColors]
-                        }
-                      >
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-gray-600">
-                      {user.joinDate}
-                    </TableCell>
-                    <TableCell className="text-gray-600">
-                      {user.lastLogin}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {user.bookings}
-                    </TableCell>
-                    <TableCell className="font-medium text-green-600">
-                      {user.spent}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            roleColors[user.roles as UserRoleType] ||
+                            "bg-gray-100 text-gray-800"
+                          }
+                        >
+                          {user.roles}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            statusColors[user.status as UserStatus] ||
+                            "bg-gray-100 text-gray-800"
+                          }
+                        >
+                          {user.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{user.country || "N/A"}</TableCell>
+                      <TableCell>
+                        {user.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString()
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Edit2 className="w-4 h-4" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit User
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Mail className="mr-2 h-4 w-4" />
-                            Send Message
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update user role and status</DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>User</Label>
+                <div className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={editingUser.avatar} />
+                    <AvatarFallback>
+                      {editingUser.firstName?.[0]?.toUpperCase() || "U"}
+                      {editingUser.lastName?.[0]?.toUpperCase() || ""}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">
+                      {editingUser.firstName} {editingUser.lastName}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {editingUser.email}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={editingUser.roles}
+                  onValueChange={(value) =>
+                    setEditingUser({ ...editingUser, roles: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(UserRoleType).map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editingUser.status}
+                  onValueChange={(value) =>
+                    setEditingUser({ ...editingUser, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(UserStatus).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveUser}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
