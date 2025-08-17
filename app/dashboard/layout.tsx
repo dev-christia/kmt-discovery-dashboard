@@ -17,6 +17,7 @@ import {
   LogOut,
   Search,
   Mail,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "User Management", href: "/dashboard/users", icon: Users },
   { name: "Invitations", href: "/dashboard/invitations", icon: Mail },
+  { name: "Contacts", href: "/dashboard/contacts", icon: MessageSquare },
   { name: "Bookings", href: "/dashboard/bookings", icon: Calendar },
   { name: "Content", href: "/dashboard/content", icon: FileText },
   { name: "Payments", href: "/dashboard/payments", icon: CreditCard },

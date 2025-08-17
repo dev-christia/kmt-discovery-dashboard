@@ -42,6 +42,7 @@ import {
   Filter,
   Download,
   Share,
+  Bell,
 } from "lucide-react";
 import { useAnalytics } from "@/hooks/use-analytics";
 
