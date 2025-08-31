@@ -41,116 +41,151 @@ import {
   Calendar,
   User,
 } from "lucide-react";
-
-// Mock content data
-const articles = [
-  {
-    id: "1",
-    title: "Sustainable Tourism in Rwanda: A Model for Africa",
-    author: "Dr. Sarah Mbeki",
-    sector: "Tourism",
-    country: "Rwanda",
-    status: "Published",
-    publishDate: "2024-07-25",
-    views: 1247,
-    excerpt:
-      "Exploring how Rwanda has become a leading example of sustainable tourism practices...",
-  },
-  {
-    id: "2",
-    title: "Investment Opportunities in Kenya's Tech Sector",
-    author: "Prof. James Okonkwo",
-    sector: "Technology",
-    country: "Kenya",
-    status: "Published",
-    publishDate: "2024-07-28",
-    views: 892,
-    excerpt:
-      "A comprehensive analysis of emerging tech investment opportunities in Kenya...",
-  },
-  {
-    id: "3",
-    title: "Cultural Heritage Preservation in West Africa",
-    author: "Dr. Fatima Al-Rashid",
-    sector: "Culture",
-    country: "Ghana",
-    status: "Draft",
-    publishDate: "2024-07-30",
-    views: 0,
-    excerpt:
-      "Examining traditional methods and modern approaches to heritage conservation...",
-  },
-  {
-    id: "4",
-    title: "Infrastructure Development in Nigeria: Progress and Challenges",
-    author: "Eng. Michael Thompson",
-    sector: "Infrastructure",
-    country: "Nigeria",
-    status: "Under Review",
-    publishDate: "2024-08-01",
-    views: 0,
-    excerpt:
-      "An in-depth look at Nigeria's infrastructure development projects and their impact...",
-  },
-  {
-    id: "5",
-    title: "Economic Policy Reforms in Mali",
-    author: "Prof. David Okello",
-    sector: "Economy",
-    country: "Mali",
-    status: "Published",
-    publishDate: "2024-07-20",
-    views: 645,
-    excerpt:
-      "Analyzing recent economic policy changes and their implications for growth...",
-  },
-];
+import { useArticles } from "@/hooks/use-articles";
+import { Article, ArticleStatus, CreateArticleData } from "@/types/article";
+import ArticleDialog from "@/components/article-dialog";
+import { toast } from "sonner";
 
 const statusColors = {
-  Published: "bg-green-100 text-green-800",
-  Draft: "bg-gray-100 text-gray-800",
-  "Under Review": "bg-yellow-100 text-yellow-800",
-  Archived: "bg-red-100 text-red-800",
-};
-
-const sectorColors = {
-  Tourism: "bg-blue-100 text-blue-800",
-  Technology: "bg-purple-100 text-purple-800",
-  Culture: "bg-pink-100 text-pink-800",
-  Infrastructure: "bg-orange-100 text-orange-800",
-  Economy: "bg-green-100 text-green-800",
-  Social: "bg-indigo-100 text-indigo-800",
+  [ArticleStatus.PUBLISHED]: "bg-green-100 text-green-800",
+  [ArticleStatus.DRAFT]: "bg-gray-100 text-gray-800",
+  [ArticleStatus.ARCHIVED]: "bg-red-100 text-red-800",
 };
 
 export default function ContentPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedSector, setSelectedSector] = useState("all");
-  const [selectedCountry, setSelectedCountry] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const {
+    articles,
+    loading,
+    error,
+    createArticle,
+    updateArticle,
+    deleteArticle,
+    pagination,
+  } = useArticles({
+    page,
+    limit: 10,
+    status: selectedStatus === "all" ? undefined : selectedStatus,
+  });
 
   const filteredArticles = articles.filter((article) => {
     const matchesSearch =
       article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      article.author.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      selectedStatus === "all" || article.status === selectedStatus;
-    const matchesSector =
-      selectedSector === "all" || article.sector === selectedSector;
-    const matchesCountry =
-      selectedCountry === "all" || article.country === selectedCountry;
-
-    return matchesSearch && matchesStatus && matchesSector && matchesCountry;
+      article.author.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      article.excerpt?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
-  const uniqueStatuses = [
-    ...new Set(articles.map((article) => article.status)),
-  ];
-  const uniqueSectors = [...new Set(articles.map((article) => article.sector))];
-  const uniqueCountries = [
-    ...new Set(articles.map((article) => article.country)),
-  ];
+  const handleCreateArticle = async (data: CreateArticleData) => {
+    setSaving(true);
+    try {
+      await createArticle(data);
+      toast.success("Article created successfully");
+    } catch (error) {
+      toast.error("Failed to create article");
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const totalViews = articles.reduce((sum, article) => sum + article.views, 0);
+  const handleUpdateArticle = async (data: CreateArticleData) => {
+    if (!editingArticle) return;
+    setSaving(true);
+    try {
+      await updateArticle(editingArticle.id, {
+        ...data,
+        id: editingArticle.id,
+      });
+      toast.success("Article updated successfully");
+    } catch (error) {
+      toast.error("Failed to update article");
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteArticle = async (articleId: string) => {
+    if (confirm("Are you sure you want to delete this article?")) {
+      try {
+        await deleteArticle(articleId);
+        toast.success("Article deleted successfully");
+      } catch (error) {
+        toast.error("Failed to delete article");
+      }
+    }
+  };
+
+  const handleEditArticle = (article: Article) => {
+    setEditingArticle(article);
+    setDialogOpen(true);
+  };
+
+  const handleNewArticle = () => {
+    setEditingArticle(null);
+    setDialogOpen(true);
+  };
+
+  const totalViews = articles.reduce(
+    (sum, article) => sum + article.viewCount,
+    0
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Content Management
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage articles, posts, and content across sectors
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading articles...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Content Management
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage articles, posts, and content across sectors
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <p className="text-lg font-medium">Error loading articles</p>
+              <p className="text-sm">{error}</p>
+            </div>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -172,7 +207,10 @@ export default function ContentPage() {
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button className="bg-red-600 hover:bg-red-700 text-white">
+          <Button
+            className="bg-red-600 hover:bg-red-700 text-white"
+            onClick={handleNewArticle}
+          >
             <Plus className="w-4 h-4 mr-2" />
             New Article
           </Button>
@@ -204,7 +242,10 @@ export default function ContentPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Published</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {articles.filter((a) => a.status === "Published").length}
+                  {
+                    articles.filter((a) => a.status === ArticleStatus.PUBLISHED)
+                      .length
+                  }
                 </p>
               </div>
               <div className="p-3 rounded-full bg-green-50">
@@ -233,10 +274,13 @@ export default function ContentPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  Sectors Covered
+                  Draft Articles
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {uniqueSectors.length}
+                  {
+                    articles.filter((a) => a.status === ArticleStatus.DRAFT)
+                      .length
+                  }
                 </p>
               </div>
               <div className="p-3 rounded-full bg-purple-50">
@@ -268,37 +312,11 @@ export default function ContentPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                {uniqueStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedSector} onValueChange={setSelectedSector}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by sector" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sectors</SelectItem>
-                {uniqueSectors.map((sector) => (
-                  <SelectItem key={sector} value={sector}>
-                    {sector}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Countries</SelectItem>
-                {uniqueCountries.map((country) => (
-                  <SelectItem key={country} value={country}>
-                    {country}
-                  </SelectItem>
-                ))}
+                <SelectItem value={ArticleStatus.DRAFT}>Draft</SelectItem>
+                <SelectItem value={ArticleStatus.PUBLISHED}>
+                  Published
+                </SelectItem>
+                <SelectItem value={ArticleStatus.ARCHIVED}>Archived</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -317,113 +335,142 @@ export default function ContentPage() {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Author</TableHead>
-                  <TableHead>Sector</TableHead>
-                  <TableHead>Country</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Publish Date</TableHead>
+                  <TableHead>Access Level</TableHead>
+                  <TableHead>Published Date</TableHead>
                   <TableHead>Views</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredArticles.map((article) => (
-                  <TableRow key={article.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {article.title}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {article.excerpt}
-                        </p>
+                {filteredArticles.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center justify-center space-y-4">
+                        <FileText className="w-12 h-12 text-gray-400" />
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-1">
+                            No articles found
+                          </h3>
+                          <p className="text-gray-500 mb-4">
+                            {searchTerm || selectedStatus !== "all"
+                              ? "Try adjusting your search or filters"
+                              : "Get started by creating your first article"}
+                          </p>
+                          {!searchTerm && selectedStatus === "all" && (
+                            <Button onClick={handleNewArticle}>
+                              <Plus className="w-4 h-4 mr-2" />
+                              Create Your First Article
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">
-                          {article.author}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          sectorColors[
-                            article.sector as keyof typeof sectorColors
-                          ]
-                        }
-                      >
-                        {article.sector}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {article.country}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          statusColors[
-                            article.status as keyof typeof statusColors
-                          ]
-                        }
-                      >
-                        {article.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">
-                          {article.publishDate}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Eye className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium">
-                          {article.views.toLocaleString()}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Article
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Article
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Globe className="mr-2 h-4 w-4" />
-                            Publish/Unpublish
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Article
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredArticles.map((article) => (
+                    <TableRow key={article.id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {article.title}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {article.excerpt}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <span className="font-medium text-gray-900">
+                            {article.author?.name || "Unknown Author"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[article.status]}>
+                          {article.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            article.accessLevel === "PREMIUM"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {article.accessLevel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-600">
+                            {article.publishedAt
+                              ? new Date(
+                                  article.publishedAt
+                                ).toLocaleDateString()
+                              : "Not published"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Eye className="w-4 h-4 text-gray-400" />
+                          <span className="font-medium">
+                            {article.viewCount?.toLocaleString() || "0"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => handleEditArticle(article)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Article
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Globe className="mr-2 h-4 w-4" />
+                              Publish/Unpublish
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDeleteArticle(article.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Article
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        article={editingArticle}
+        onSave={editingArticle ? handleUpdateArticle : handleCreateArticle}
+        loading={saving}
+      />
     </div>
   );
 }
