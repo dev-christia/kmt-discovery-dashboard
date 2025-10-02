@@ -18,6 +18,7 @@ import {
   Search,
   Mail,
   MessageSquare,
+  Folder,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Invitations", href: "/dashboard/invitations", icon: Mail },
   { name: "Contacts", href: "/dashboard/contacts", icon: MessageSquare },
   { name: "Bookings", href: "/dashboard/bookings", icon: Calendar },
+  { name: "Categories", href: "/dashboard/categories", icon: Folder },
   // { name: "Content", href: "/dashboard/content", icon: FileText },
   // { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
   // { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
