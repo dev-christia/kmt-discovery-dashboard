@@ -33,6 +33,7 @@ const navigation = [
   { name: "Contacts", href: "/dashboard/contacts", icon: MessageSquare },
   { name: "Bookings", href: "/dashboard/bookings", icon: Calendar },
   { name: "Categories", href: "/dashboard/categories", icon: Folder },
+  { name: "Events", href: "/dashboard/events", icon: Calendar },
   // { name: "Content", href: "/dashboard/content", icon: FileText },
   // { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
   // { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
