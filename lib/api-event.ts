@@ -131,6 +131,24 @@ class EventApi {
     const payload = await this.handleResponse<any>(response);
     return payload as EventBookingsResponse;
   }
+
+  async updateBookingStatus(
+    eventId: string,
+    bookingId: string,
+    data: { status?: string; paymentStatus?: string },
+    accessToken?: string
+  ): Promise<void> {
+    const response = await fetch(
+      `${this.baseUrl}/admin/booking/${bookingId}/update-status`,
+      {
+        method: "PUT",
+        headers: this.getHeaders(accessToken),
+        body: JSON.stringify(data),
+      }
+    );
+
+    await this.handleResponse<any>(response);
+  }
 }
 
 export const eventApi = new EventApi();

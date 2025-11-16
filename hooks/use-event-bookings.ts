@@ -15,6 +15,7 @@ export function useEventBookings({ eventId, autoFetch = true }: UseEventBookings
   const [bookingsData, setBookingsData] = useState<EventBookingsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const { toast } = useToast();
@@ -37,13 +38,76 @@ export function useEventBookings({ eventId, autoFetch = true }: UseEventBookings
       setError(message);
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "✗ Failed to Load Attendees",
         description: message,
       });
     } finally {
       setLoading(false);
     }
   }, [eventId, accessToken, toast]);
+
+  const updateBookingStatus = useCallback(
+    async (bookingId: string, updates: { status?: string; paymentStatus?: string }) => {
+      if (!eventId || !accessToken) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Missing authentication or event information. Please try again.",
+        });
+        return;
+      }
+
+      setUpdatingBookingId(bookingId);
+
+      try {
+        await eventApi.updateBookingStatus(eventId, bookingId, updates, accessToken);
+        
+        // Optimistic update
+        setBookingsData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            bookings: prev.bookings.map((booking) =>
+              booking.bookingId === bookingId
+                ? {
+                    ...booking,
+                    status: updates.status ? (updates.status as any) : booking.status,
+                    paymentStatus: updates.paymentStatus
+                      ? (updates.paymentStatus as any)
+                      : booking.paymentStatus,
+                  }
+                : booking
+            ),
+          };
+        });
+
+        // Build descriptive success message
+        const updateDetails = [];
+        if (updates.status) updateDetails.push(`Booking status → ${updates.status}`);
+        if (updates.paymentStatus) updateDetails.push(`Payment status → ${updates.paymentStatus}`);
+
+        toast({
+          title: "✓ Update Successful",
+          description: updateDetails.length > 0 
+            ? updateDetails.join(" | ")
+            : "Booking updated successfully",
+        });
+
+        // Refetch to ensure sync
+        await fetchBookings();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to update booking status";
+        toast({
+          variant: "destructive",
+          title: "✗ Update Failed",
+          description: message,
+        });
+      } finally {
+        setUpdatingBookingId(null);
+      }
+    },
+    [eventId, accessToken, toast, fetchBookings]
+  );
 
   useEffect(() => {
     if (autoFetch && eventId) {
@@ -59,6 +123,8 @@ export function useEventBookings({ eventId, autoFetch = true }: UseEventBookings
     bookingsData,
     loading,
     error,
+    updatingBookingId,
     refetch,
+    updateBookingStatus,
   };
 }

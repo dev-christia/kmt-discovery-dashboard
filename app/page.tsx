@@ -83,9 +83,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Brand Section */}
-      <div className="flex-1 bg-gradient-to-br from-green-600 via-blue-600 to-yellow-500 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Mobile Brand Header */}
+      <div className="lg:hidden bg-gradient-to-r from-red-600 to-red-700 text-white p-6 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">KMT Discovery</h1>
+        <p className="text-sm sm:text-base opacity-90">
+          Discover Rwanda's rich heritage, vibrant culture, and tourism
+          opportunities
+        </p>
+      </div>
+
+      {/* Left Side - Brand Section (Desktop only) */}
+      <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-red-600 via-red-700 to-yellow-500 relative overflow-hidden">
         {/* Rwanda silhouette background */}
         <div className="absolute inset-0 opacity-20">
           <svg viewBox="0 0 400 600" className="w-full h-full">
@@ -98,8 +107,10 @@ export default function LoginPage() {
 
         <div className="relative z-10 p-12 text-white h-full flex flex-col justify-center">
           <div className="max-w-md">
-            <h1 className="text-4xl font-bold mb-4">KMT Discovery</h1>
-            <p className="text-xl mb-12 opacity-90">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4">
+              KMT Discovery
+            </h1>
+            <p className="text-lg lg:text-xl mb-12 opacity-90">
               Discover Rwanda's rich heritage, vibrant culture, and incredible
               tourism opportunities
             </p>
@@ -150,13 +161,13 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 bg-white flex items-center justify-center p-8">
+      <div className="flex-1 bg-white flex items-center justify-center p-4 sm:p-6 lg:p-8 min-h-screen lg:min-h-auto">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               Welcome Back
             </h2>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Sign in to access your KMT Discovery dashboard
             </p>
           </div>
@@ -224,7 +235,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
+              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -238,12 +249,14 @@ export default function LoginPage() {
             </Button>
 
             <div className="text-center">
-              <button
-                type="button"
-                className="text-sm text-green-600 hover:text-green-700"
+              <a
+                href="https://www.kmtdiscovery.rw/forgot-password"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-red-600 hover:text-red-700"
               >
                 Forgot your password?
-              </button>
+              </a>
             </div>
           </form>
         </div>

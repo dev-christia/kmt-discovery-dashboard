@@ -68,6 +68,7 @@ import {
   Info,
   CheckCircle,
   AlertTriangle,
+  Coins
 } from "lucide-react";
 import { useEvents } from "@/hooks/use-events";
 import { EventDetailsDialog } from "@/components/event-details-dialog";
@@ -556,7 +557,7 @@ export default function EventsPage() {
                         <TableCell className="text-sm text-gray-600">
                           {event.isPaid ? (
                             <div className="flex items-center gap-1">
-                              <DollarSign className="w-4 h-4 text-green-600" />
+                              <Coins className="w-4 h-4 text-green-600" />
                               {event.price}
                             </div>
                           ) : (

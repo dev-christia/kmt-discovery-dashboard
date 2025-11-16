@@ -16,6 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -35,6 +42,10 @@ import {
 } from "lucide-react";
 import { useEventBookings } from "@/hooks/use-event-bookings";
 import type { Event, EventBookingStatus, PaymentStatus } from "@/types/event";
+import {
+  EventBookingStatus as BookingStatusEnum,
+  PaymentStatus as PaymentStatusEnum,
+} from "@/types/event";
 
 interface EventDetailsDialogProps {
   open: boolean;
@@ -64,7 +75,13 @@ export function EventDetailsDialog({
   event,
   onOpenChange,
 }: EventDetailsDialogProps) {
-  const { bookingsData, loading, error } = useEventBookings({
+  const {
+    bookingsData,
+    loading,
+    error,
+    updatingBookingId,
+    updateBookingStatus,
+  } = useEventBookings({
     eventId: event?.id,
     autoFetch: open && !!event,
   });
@@ -228,7 +245,7 @@ export function EventDetailsDialog({
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Booking Status</TableHead>
-                      <TableHead>Payment Status</TableHead>
+                      {event.isPaid && <TableHead>Payment Status</TableHead>}
                       <TableHead>Booked At</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -237,6 +254,9 @@ export function EventDetailsDialog({
                       const bookingBadge = bookingStatusBadge[booking.status];
                       const paymentBadge =
                         paymentStatusBadge[booking.paymentStatus];
+                      const isUpdating =
+                        updatingBookingId === booking.bookingId;
+
                       return (
                         <TableRow key={booking.bookingId}>
                           <TableCell className="font-medium">
@@ -257,19 +277,76 @@ export function EventDetailsDialog({
                             {booking.user.email}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              className={`${bookingBadge.bg} ${bookingBadge.text}`}
+                            <Select
+                              value={booking.status}
+                              onValueChange={(newStatus) =>
+                                updateBookingStatus(booking.bookingId, {
+                                  status: newStatus,
+                                })
+                              }
+                              disabled={isUpdating}
                             >
-                              {booking.status}
-                            </Badge>
+                              <SelectTrigger
+                                className={`w-[140px] font-medium ${
+                                  bookingStatusBadge[booking.status].bg
+                                } ${bookingStatusBadge[booking.status].text}`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={BookingStatusEnum.CONFIRMED}>
+                                  Confirmed
+                                </SelectItem>
+                                <SelectItem value={BookingStatusEnum.PENDING}>
+                                  Pending
+                                </SelectItem>
+                                <SelectItem value={BookingStatusEnum.CANCELLED}>
+                                  Cancelled
+                                </SelectItem>
+                                <SelectItem value={BookingStatusEnum.NO_SHOW}>
+                                  No Show
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={`${paymentBadge.bg} ${paymentBadge.text}`}
-                            >
-                              {booking.paymentStatus}
-                            </Badge>
-                          </TableCell>
+                          {event.isPaid && (
+                            <TableCell>
+                              <Select
+                                value={booking.paymentStatus}
+                                onValueChange={(newPaymentStatus) =>
+                                  updateBookingStatus(booking.bookingId, {
+                                    paymentStatus: newPaymentStatus,
+                                  })
+                                }
+                                disabled={isUpdating}
+                              >
+                                <SelectTrigger
+                                  className={`w-[120px] font-medium ${
+                                    booking.paymentStatus === "PAID"
+                                      ? "bg-green-100 text-green-800 border-green-200"
+                                      : booking.paymentStatus === "UNPAID"
+                                      ? "bg-red-100 text-red-800 border-red-200"
+                                      : "bg-blue-100 text-blue-800 border-blue-200"
+                                  }`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={PaymentStatusEnum.PAID}>
+                                    Paid
+                                  </SelectItem>
+                                  <SelectItem value={PaymentStatusEnum.UNPAID}>
+                                    Unpaid
+                                  </SelectItem>
+                                  <SelectItem
+                                    value={PaymentStatusEnum.REFUNDED}
+                                  >
+                                    Refunded
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          )}
                           <TableCell className="text-sm text-gray-600">
                             {format(
                               new Date(booking.bookedAt),
