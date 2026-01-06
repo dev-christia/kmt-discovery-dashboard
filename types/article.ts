@@ -13,7 +13,7 @@ export interface Article {
   id: string;
   title: string;
   slug: string;
-  content: any; // JSON from Editor.js
+  content: string; // Markdown content
   excerpt?: string;
   status: ArticleStatus;
   accessLevel: AccessLevel;
@@ -27,7 +27,7 @@ export interface Article {
     name: string;
     email: string;
   };
-  categories: Category[];
+  // categories: Category[]; // Removed dependency
   images: ArticleImage[];
   metadata?: any;
   viewCount: number;
@@ -64,11 +64,11 @@ export interface ArticlesResponse {
 
 export interface CreateArticleData {
   title: string;
-  content: any;
+  content: string;
   excerpt?: string;
   status?: ArticleStatus;
   accessLevel?: AccessLevel;
-  categories?: string[];
+  slug?: string;
 }
 
 export interface UpdateArticleData extends Partial<CreateArticleData> {
