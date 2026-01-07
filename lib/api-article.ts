@@ -38,22 +38,6 @@ class ArticleApi {
     return response.json();
   }
 
-  async getArticle(id: string, accessToken?: string): Promise<Article> {
-    const headers: Record<string, string> = this.getAuthHeaders();
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch article: ${response.statusText}`);
-    }
-    return response.json();
-  }
-
   async createArticle(data: CreateArticleData, accessToken?: string): Promise<Article> {
     const headers: Record<string, string> = this.getAuthHeaders();
     if (accessToken) {

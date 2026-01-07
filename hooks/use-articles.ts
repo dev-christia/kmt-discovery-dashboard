@@ -29,23 +29,7 @@ export function useArticles({ page = 1, limit = 10, status }: UseArticlesProps =
     try {
       // @ts-ignore
       const data = await articleApi.getMyArticles({ page, limit, status }, session.accessToken);
-      console.log("API Response:", data);
-
-      let fetchedArticles: Article[] = [];
-      let fetchedPagination = null;
-
-      if (Array.isArray(data)) {
-        fetchedArticles = data;
-      } else if (data?.articles && Array.isArray(data.articles)) {
-        fetchedArticles = data.articles;
-        fetchedPagination = data.pagination;
-      } else if (data?.data?.articles && Array.isArray(data.data.articles)) {
-        fetchedArticles = data.data.articles;
-        fetchedPagination = data.data.pagination;
-      }
-
-      setArticles(fetchedArticles || []);
-      setPagination(fetchedPagination || null);
+      setArticles(data?.articles || []);
       setPagination(data?.pagination || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch articles');

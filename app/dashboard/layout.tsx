@@ -34,11 +34,6 @@ const navigation = [
   { name: "Bookings", href: "/dashboard/bookings", icon: Calendar },
   { name: "Categories", href: "/dashboard/categories", icon: Folder },
   { name: "Events", href: "/dashboard/events", icon: Calendar },
-  {
-    name: "Founder Articles",
-    href: "/dashboard/founder/articles",
-    icon: FileText,
-  },
   // { name: "Content", href: "/dashboard/content", icon: FileText },
   // { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
   // { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
